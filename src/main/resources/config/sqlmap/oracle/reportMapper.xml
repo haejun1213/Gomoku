@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.ac.kopo.report.dao.ReportMapper">
+
+    <insert id="insertUserReport" parameterType="kr.ac.kopo.report.dto.UserReportDTO">
+        INSERT INTO USER_REPORTS (REPORTER_ID, TARGET_ID, REASON)
+        VALUES (#{reporterId}, #{targetId}, #{reason})
+    </insert>
+
+</mapper>

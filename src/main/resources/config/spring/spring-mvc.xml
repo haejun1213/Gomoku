@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:mvc="http://www.springframework.org/schema/mvc"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:mybatis="http://mybatis.org/schema/mybatis-spring"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans   
+    http://www.springframework.org/schema/beans/spring-beans.xsd
+    http://www.springframework.org/schema/context   
+    http://www.springframework.org/schema/context/spring-context.xsd
+    http://www.springframework.org/schema/mvc
+    http://www.springframework.org/schema/mvc/spring-mvc.xsd
+    http://mybatis.org/schema/mybatis-spring
+    http://mybatis.org/schema/mybatis-spring.xsd">
+
+	<context:component-scan
+		base-package="kr.ac.kopo" />
+	<context:property-placeholder location="classpath:config/api.properties"/>
+	<mvc:annotation-driven>
+		<mvc:message-converters>
+			<bean
+				class="org.springframework.http.converter.StringHttpMessageConverter">
+				<property name="supportedMediaTypes">
+					<list>
+						<value>text/html; charset=utf-8</value>
+					</list>
+				</property>
+			</bean>
+			<bean
+				class="org.springframework.http.converter.json.MappingJackson2HttpMessageConverter">
+				<property name="supportedMediaTypes">
+					<list>
+						<value>text/html; charset=utf-8</value>
+						<value>application/json; charset=utf-8</value>
+					</list>
+				</property>
+			</bean>
+		</mvc:message-converters>
+	</mvc:annotation-driven>
+	<mvc:default-servlet-handler />
+	<mvc:view-resolvers>
+		<mvc:jsp prefix="/WEB-INF/views/" suffix=".jsp" />
+	</mvc:view-resolvers>
+
+	<bean id="multipartResolver"
+		class="org.springframework.web.multipart.support.StandardServletMultipartResolver" />
+
+	<bean id="dataSource"
+		class="org.apache.commons.dbcp.BasicDataSource">
+		<property name="driverClassName"
+			value="oracle.jdbc.driver.OracleDriver" />
+		<property name="url"
+			value="jdbc:oracle:thin:@localhost:1521:xe" />
+		<property name="username" value="${db.username}" />
+		<property name="password" value="${db.password}" />
+	</bean>
+
+	<bean id="sqlSessionFactory"
+		class="org.mybatis.spring.SqlSessionFactoryBean">
+		<property name="dataSource" ref="dataSource" />
+		<property name="configLocation"
+			value="classpath:config/mybatis/sqlMapConfig.xml" />
+		<property name="mapperLocations"
+			value="classpath:config/sqlmap/oracle/*.xml" />
+	</bean>
+
+
+	<bean id="sqlSessionTemplate"
+		class="org.mybatis.spring.SqlSessionTemplate">
+		<constructor-arg ref="sqlSessionFactory" />
+	</bean>
+
+	<mvc:resources mapping="/profile-images/**" location="file:///C:/gomoku_uploads/profiles/" />
+	
+
+	<mybatis:scan
+		base-package="kr.ac.kopo.user.dao,kr.ac.kopo.game.dao,kr.ac.kopo.admin.dao, kr.ac.kopo.report.dao"
+		factory-ref="sqlSessionFactory" />
+
+	<bean id="passwordEncoder"
+		class="org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder" />
+
+	<bean id="restTemplate"
+		class="org.springframework.web.client.RestTemplate" />
+
+	<bean id="transactionManager"
+		class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+		<property name="dataSource" ref="dataSource" />
+	</bean>
+
+	<context:annotation-config />
+	<bean
+		class="org.springframework.transaction.aspectj.AnnotationTransactionAspect"
+		factory-method="aspectOf">
+		<property name="transactionManager" ref="transactionManager" />
+	</bean>
+
+	<bean id="serverEndpointExporter"
+		class="org.springframework.web.socket.server.standard.ServerEndpointExporter" />
+
+	<mvc:interceptors>
+		<mvc:interceptor>
+			<mvc:mapping path="/game/**" />
+			<bean class="kr.ac.kopo.interceptor.LoginInterceptor" />
+		</mvc:interceptor>
+
+		<mvc:interceptor>
+			<mvc:mapping path="/admin/**" />
+			<bean class="kr.ac.kopo.interceptor.AdminInterceptor" />
+		</mvc:interceptor>
+	</mvc:interceptors>
+
+	<bean id="objectMapper"
+		class="com.fasterxml.jackson.databind.ObjectMapper" />
+
+</beans>

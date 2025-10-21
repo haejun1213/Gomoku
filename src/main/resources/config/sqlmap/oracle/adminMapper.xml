@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.ac.kopo.admin.dao.AdminMapper">
+
+    <sql id="searchCondition">
+        <if test="searchType != null and keyword != null and keyword != ''">
+            <choose>
+                <when test="searchType == 'email'">
+                    AND EMAIL LIKE '%' || #{keyword} || '%'
+                </when>
+                <when test="searchType == 'nickname'">
+                    AND NICKNAME LIKE '%' || #{keyword} || '%'
+                </when>
+            </choose>
+        </if>
+    </sql>
+
+    <select id="findUsersWithPaging" parameterType="kr.ac.kopo.user.dto.UserSearchCriteria" resultType="kr.ac.kopo.user.vo.UserVO">
+        SELECT * FROM (
+            SELECT t.*, ROWNUM as rnum FROM (
+                SELECT * FROM USERS
+                <where>
+                    <include refid="searchCondition"/>
+                </where>
+                ORDER BY JOINED_DATE DESC
+            ) t
+        )
+        WHERE rnum BETWEEN #{pageStart} + 1 AND #{pageStart} + #{perPageNum}
+    </select>
+
+    <select id="countTotalUsers" parameterType="kr.ac.kopo.user.dto.UserSearchCriteria" resultType="int">
+        SELECT COUNT(*) FROM USERS
+        <where>
+            <include refid="searchCondition"/>
+        </where>
+    </select>
+    
+    <update id="updateUserActiveStatus">
+        UPDATE USERS SET IS_ACTIVE = #{isActive} WHERE USER_ID = #{userId}
+    </update>
+    
+    <select id="countAllRooms" resultType="int">
+    SELECT COUNT(*) FROM GAME_ROOMS
+</select>
+
+<select id="findAllRoomsWithPaging" parameterType="kr.ac.kopo.common.dto.Criteria" resultType="kr.ac.kopo.game.dto.GameRoomInfoDTO">
+    SELECT
+        ROOM_ID, TITLE, HOST_USER_ID, STATUS, CREATED_DATETIME,
+        MAX_PARTICIPANTS, IS_PRIVATE, currentParticipants
+    FROM (
+        SELECT 
+            t.*, ROWNUM as rnum 
+        FROM (
+            SELECT
+                gr.ROOM_ID, gr.TITLE, gr.HOST_USER_ID, gr.STATUS, gr.CREATED_DATETIME,
+                gr.MAX_PARTICIPANTS, gr.IS_PRIVATE,
+                NVL(pc.count, 0) as currentParticipants
+            FROM
+                GAME_ROOMS gr
+            LEFT JOIN
+                (SELECT ROOM_ID, COUNT(*) as count FROM ROOM_PARTICIPANTS GROUP BY ROOM_ID) pc
+            ON 
+                gr.ROOM_ID = pc.ROOM_ID
+            ORDER BY
+                gr.ROOM_ID DESC
+        ) t
+    )
+    WHERE rnum BETWEEN #{pageStart} + 1 AND #{pageStart} + #{perPageNum}
+</select>
+
+<select id="findReportsWithPaging" parameterType="kr.ac.kopo.common.dto.Criteria" resultType="kr.ac.kopo.report.dto.UserReportInfoDTO">
+        SELECT
+            REPORT_ID, REPORTER_ID, TARGET_ID, REASON, STATUS, CREATED_DATETIME,
+            reporterNickname, targetNickname
+        FROM (
+            SELECT
+                t.*, ROWNUM as rnum
+            FROM (
+                SELECT
+                    ur.REPORT_ID, ur.REPORTER_ID, ur.TARGET_ID,
+                    ur.REASON, ur.STATUS, ur.CREATED_DATETIME,
+                    reporter.NICKNAME as reporterNickname,
+                    target.NICKNAME as targetNickname
+                FROM
+                    USER_REPORTS ur
+                LEFT JOIN
+                    USERS reporter ON ur.REPORTER_ID = reporter.USER_ID
+                LEFT JOIN
+                    USERS target ON ur.TARGET_ID = target.USER_ID
+                ORDER BY
+                    ur.STATUS ASC, ur.CREATED_DATETIME DESC
+            ) t
+        )
+        WHERE rnum BETWEEN #{pageStart} + 1 AND #{perPageNum}
+    </select>
+
+    <!-- 전체 신고 수 조회 -->
+    <select id="countTotalReports" resultType="int">
+        SELECT COUNT(*) FROM USER_REPORTS
+    </select>
+
+    <!-- 신고 상태 변경 -->
+    <update id="updateReportStatus">
+        UPDATE USER_REPORTS
+        SET STATUS = #{status}
+        WHERE REPORT_ID = #{reportId}
+    </update>
+
+<delete id="deleteReport" parameterType="long">
+    DELETE FROM USER_REPORTS WHERE REPORT_ID = #{reportId}
+</delete>
+</mapper>

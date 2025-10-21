@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+ "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.ac.kopo.user.dao.UserMapper">
+
+    <resultMap id="userResultMap" type="userVO">
+        <id property="userId" column="USER_ID"/>
+        <result property="email" column="EMAIL"/>
+        <result property="password" column="PASSWORD"/>
+        <result property="nickname" column="NICKNAME"/>
+        <result property="profileImage" column="PROFILE_IMAGE"/>
+        <result property="isSocialLogin" column="IS_SOCIAL_LOGIN"/>
+        <result property="socialType" column="SOCIAL_TYPE"/>
+        <result property="socialId" column="SOCIAL_ID"/>
+        <result property="role" column="ROLE"/>
+        <result property="isActive" column="IS_ACTIVE"/>
+        <result property="joinedDate" column="JOINED_DATE"/>
+        <result property="lastLoginDatetime" column="LAST_LOGIN_DATETIME"/>
+        <result property="faceEncoding" column="FACE_ENCODING" />
+    </resultMap>
+<update id="updateFaceEncoding">
+    UPDATE USERS
+    SET FACE_ENCODING = #{encoding}
+    WHERE USER_ID = #{userId}
+</update>
+    <insert id="insertUser" parameterType="userVO">
+        INSERT INTO USERS (EMAIL, PASSWORD, NICKNAME, PROFILE_IMAGE, IS_SOCIAL_LOGIN, SOCIAL_TYPE, SOCIAL_ID, ROLE, IS_ACTIVE)
+        VALUES (#{email, jdbcType=VARCHAR}, #{password, jdbcType=VARCHAR},
+        #{nickname, jdbcType=VARCHAR},
+        #{profileImage, jdbcType=VARCHAR},
+        #{isSocialLogin, jdbcType=CHAR},
+        #{socialType, jdbcType=VARCHAR},
+        #{socialId, jdbcType=VARCHAR},
+        #{role, jdbcType=CHAR},
+        #{isActive, jdbcType=CHAR})
+    </insert>
+    
+    <select id="findUserById" parameterType="long" resultMap="userResultMap">
+        SELECT * FROM USERS WHERE USER_ID = #{userId}
+    </select>
+
+    <select id="findUserByEmail" parameterType="string" resultMap="userResultMap">
+        SELECT * FROM USERS WHERE EMAIL = #{email}
+    </select>
+
+    <select id="findUserByNickname" parameterType="string" resultMap="userResultMap">
+        SELECT * FROM USERS WHERE NICKNAME = #{nickname}
+    </select>
+
+    <select id="findUserBySocialId" parameterType="map" resultMap="userResultMap">
+        SELECT * FROM USERS WHERE SOCIAL_TYPE = #{socialType} AND SOCIAL_ID = #{socialId}
+    </select>
+
+    <update id="updateLastLoginDatetime" parameterType="long">
+        UPDATE USERS SET LAST_LOGIN_DATETIME = SYSDATE WHERE USER_ID = #{userId}
+    </update>
+
+    <update id="updateUser" parameterType="userVO">
+        UPDATE USERS
+        SET NICKNAME = #{nickname},
+            PROFILE_IMAGE = #{profileImage},
+            EMAIL = #{email},
+            PASSWORD = #{password},
+            IS_SOCIAL_LOGIN = #{isSocialLogin},
+            SOCIAL_TYPE = #{socialType},
+            SOCIAL_ID = #{socialId},
+            ROLE = #{role},
+            IS_ACTIVE = #{isActive}
+        WHERE USER_ID = #{userId}
+    </update>
+
+<update id="updateNickname">
+    UPDATE USERS
+    SET NICKNAME = #{nickname}
+    WHERE USER_ID = #{userId}
+</update>
+
+<update id="updatePassword">
+    UPDATE USERS
+    SET PASSWORD = #{password}
+    WHERE USER_ID = #{userId}
+</update>
+
+<update id="updateProfileImage">
+    UPDATE USERS
+    SET PROFILE_IMAGE = #{profileImage}
+    WHERE USER_ID = #{userId}
+</update>
+
+<select id="findGameHistoryListByUserIdWithPaging" resultType="kr.ac.kopo.game.dto.GameHistoryInfoDTO">
+    SELECT 
+        GAME_ID, START_DATETIME, WINNER_ID, BLACK_USER_ID, WHITE_USER_ID, 
+        blackPlayerNickname, whitePlayerNickname, result, myColor
+    FROM (
+        SELECT 
+            t.*, ROWNUM as rnum 
+        FROM (
+            SELECT
+                h.GAME_ID, h.START_DATETIME, h.WINNER_ID, h.BLACK_USER_ID, h.WHITE_USER_ID,
+                
+                black_user.NICKNAME as blackPlayerNickname,
+                white_user.NICKNAME as whitePlayerNickname,
+                
+                CASE
+                    WHEN h.BLACK_USER_ID = #{userId} THEN 'BLACK'
+                    ELSE 'WHITE'
+                END as myColor,
+                CASE
+                    WHEN h.WINNER_ID = #{userId} THEN '승리'
+                    WHEN h.WINNER_ID IS NULL THEN '무승부'
+                    ELSE '패배'
+                END as result
+            FROM GAME_HISTORY h
+            LEFT JOIN USERS black_user ON h.BLACK_USER_ID = black_user.USER_ID
+            LEFT JOIN USERS white_user ON h.WHITE_USER_ID = white_user.USER_ID
+            WHERE h.BLACK_USER_ID = #{userId} OR h.WHITE_USER_ID = #{userId}
+            ORDER BY h.START_DATETIME DESC
+        ) t
+    )
+    WHERE rnum BETWEEN #{cri.pageStart} + 1 AND #{cri.pageStart} + #{cri.perPageNum}
+
+</select>
+
+<select id="findAllGameHistoriesByUserId" parameterType="long" resultType="kr.ac.kopo.game.vo.GameHistoryVO">
+    SELECT * FROM GAME_HISTORY
+    WHERE BLACK_USER_ID = #{userId} OR WHITE_USER_ID = #{userId}
+    ORDER BY START_DATETIME DESC
+</select>
+
+<select id="countGameHistories" parameterType="long" resultType="int">
+    SELECT COUNT(*) 
+    FROM GAME_HISTORY
+    WHERE BLACK_USER_ID = #{userId} OR WHITE_USER_ID = #{userId}
+</select>
+
+   <select id="findGameHistoryByGameId" resultType="kr.ac.kopo.game.dto.GameHistoryInfoDTO">
+    SELECT
+        h.GAME_ID,
+        h.START_DATETIME,
+        h.WINNER_ID,
+        h.BLACK_USER_ID,
+        h.WHITE_USER_ID,
+        black_user.NICKNAME as blackPlayerNickname,
+        white_user.NICKNAME as whitePlayerNickname,
+        
+        CASE
+            WHEN h.BLACK_USER_ID = #{userId} THEN 'BLACK'
+            ELSE 'WHITE'
+        END as myColor,
+        CASE
+            WHEN h.WINNER_ID = #{userId} THEN '승리'
+            WHEN h.WINNER_ID IS NULL THEN '무승부'
+            ELSE '패배'
+        END as result
+    FROM
+        GAME_HISTORY h
+    LEFT JOIN
+        USERS black_user ON h.BLACK_USER_ID = black_user.USER_ID
+    LEFT JOIN
+        USERS white_user ON h.WHITE_USER_ID = white_user.USER_ID
+    WHERE
+        h.GAME_ID = #{gameId}
+        AND (h.BLACK_USER_ID = #{userId} OR h.WHITE_USER_ID = #{userId})
+</select>
+
+<select id="findAiBot" resultMap="userResultMap">
+    SELECT * FROM USERS WHERE ROLE = 'B' AND ROWNUM = 1
+</select>
+
+<delete id="deleteUserReports" parameterType="long">
+    DELETE FROM USER_REPORTS
+    WHERE REPORTER_ID = #{userId} OR TARGET_ID = #{userId}
+</delete>
+
+<!-- 특정 유저 삭제 -->
+<delete id="deleteUser" parameterType="long">
+    DELETE FROM USERS WHERE USER_ID = #{userId}
+</delete>
+</mapper>

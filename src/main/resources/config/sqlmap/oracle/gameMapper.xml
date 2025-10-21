@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.ac.kopo.game.dao.GameDAO">
+	
+	<resultMap id="participantWithUserResultMap" type="kr.ac.kopo.game.vo.RoomParticipantVO">
+    <result property="roomId" column="ROOM_ID"/>
+    <result property="userId" column="USER_ID"/>
+    <result property="role" column="PARTICIPANT_ROLE"/>
+    <result property="joinedDatetime" column="JOINED_DATETIME"/>
+    
+    <association property="user" javaType="kr.ac.kopo.user.vo.UserVO">
+        <id property="userId" column="USER_ID"/>
+        <result property="nickname" column="NICKNAME"/>
+        <result property="role" column="USER_ROLE"/>
+        <result property="profileImage" column="PROFILE_IMAGE"/>
+    </association>
+</resultMap>
+	
+	
+    <select id="findWaitingRoom" resultType="kr.ac.kopo.game.vo.GameRoomVO">
+        SELECT * FROM (SELECT * FROM GAME_ROOMS WHERE STATUS = 'WAITING' ORDER BY CREATED_DATETIME ASC) WHERE ROWNUM = 1
+    </select>
+
+    <insert id="createRoom" parameterType="kr.ac.kopo.game.vo.GameRoomVO"
+        useGeneratedKeys="true" keyProperty="roomId" keyColumn="ROOM_ID">
+    INSERT INTO GAME_ROOMS (
+        TITLE, HOST_USER_ID, STATUS, MAX_PARTICIPANTS, IS_PRIVATE
+    ) VALUES (
+        #{title}, 
+        #{hostUserId, jdbcType=NUMERIC}, 
+        'WAITING',
+        #{maxParticipants, jdbcType=NUMERIC},
+        #{isPrivate, jdbcType=CHAR}
+    )
+</insert>
+
+    <insert id="addParticipant" parameterType="kr.ac.kopo.game.vo.RoomParticipantVO">
+        INSERT INTO ROOM_PARTICIPANTS (ROOM_ID, USER_ID, ROLE) VALUES (#{roomId}, #{userId}, #{role})
+    </insert>
+
+    <select id="getRoomById" parameterType="int" resultType="kr.ac.kopo.game.vo.GameRoomVO">
+        SELECT * FROM GAME_ROOMS WHERE ROOM_ID = #{roomId}
+    </select>
+
+    <update id="updateRoomStatus" parameterType="kr.ac.kopo.game.vo.GameRoomVO">
+    UPDATE GAME_ROOMS
+    SET STATUS = #{status, jdbcType=VARCHAR}
+    WHERE ROOM_ID = #{roomId}
+</update>
+
+    <select id="getParticipantsByRoomId" parameterType="int" resultMap="participantWithUserResultMap">
+    SELECT 
+        p.ROOM_ID,
+        p.USER_ID,
+        p.ROLE as PARTICIPANT_ROLE, -- USERS.ROLE과 이름이 겹치므로 별칭(alias) 사용
+        p.JOINED_DATETIME,
+        u.NICKNAME,
+        u.ROLE as USER_ROLE, -- ROOM_PARTICIPANTS.ROLE과 이름이 겹치므로 별칭 사용
+        u.PROFILE_IMAGE
+    FROM 
+        ROOM_PARTICIPANTS p
+    JOIN 
+        USERS u ON p.USER_ID = u.USER_ID
+    WHERE 
+        p.ROOM_ID = #{roomId}
+</select>
+
+    <insert id="insertGameHistory" parameterType="kr.ac.kopo.game.vo.GameHistoryVO"
+            useGeneratedKeys="true" keyProperty="gameId" keyColumn="GAME_ID">
+        INSERT INTO GAME_HISTORY (ROOM_ID, BLACK_USER_ID, WHITE_USER_ID, WINNER_ID, START_DATETIME, END_DATETIME)
+        VALUES (#{roomId}, #{blackUserId}, #{whiteUserId}, #{winnerId}, #{startDatetime}, #{endDatetime})
+    </insert>
+
+    <insert id="insertGameMoves" parameterType="java.util.List">
+    BEGIN
+        <foreach collection="list" item="move">
+            INSERT INTO GAME_MOVES (GAME_ID, MOVE_ORDER, X_COORD, Y_COORD, COLOR)
+            VALUES (#{move.gameId}, #{move.moveOrder}, #{move.xCoord}, #{move.yCoord}, #{move.color});
+        </foreach>
+    END;
+	</insert>
+
+	<select id="findJoinableRooms" resultType="kr.ac.kopo.game.dto.GameRoomInfoDTO">
+    SELECT
+        gr.ROOM_ID,
+        gr.TITLE,
+        gr.HOST_USER_ID,
+        gr.STATUS,
+        gr.CREATED_DATETIME,
+        gr.MAX_PARTICIPANTS,
+        gr.IS_PRIVATE,
+        (SELECT COUNT(*) FROM ROOM_PARTICIPANTS rp WHERE rp.ROOM_ID = gr.ROOM_ID) AS currentParticipants
+    FROM
+        GAME_ROOMS gr
+    WHERE
+        gr.STATUS = 'WAITING' 
+        AND gr.IS_PRIVATE = 'N'
+        AND (SELECT COUNT(*) FROM ROOM_PARTICIPANTS rp WHERE rp.ROOM_ID = gr.ROOM_ID) &lt; gr.MAX_PARTICIPANTS
+    ORDER BY
+        gr.CREATED_DATETIME DESC
+</select>
+
+
+<delete id="deleteParticipant">
+    DELETE FROM ROOM_PARTICIPANTS
+    WHERE ROOM_ID = #{roomId} AND USER_ID = #{userId}
+</delete>
+
+<select id="countParticipantsInRoom" parameterType="int" resultType="int">
+    SELECT COUNT(*) FROM ROOM_PARTICIPANTS WHERE ROOM_ID = #{roomId}
+</select>
+
+<delete id="deleteRoom" parameterType="int">
+    DELETE FROM GAME_ROOMS WHERE ROOM_ID = #{roomId}
+</delete>
+
+<select id="findMovesByGameId" parameterType="int" resultType="kr.ac.kopo.game.vo.GameMoveVO">
+    SELECT 
+        MOVE_ID, GAME_ID, MOVE_ORDER, X_COORD, Y_COORD, COLOR
+    FROM 
+        GAME_MOVES
+    WHERE 
+        GAME_ID = #{gameId}
+    ORDER BY 
+        MOVE_ORDER ASC
+</select>
+
+<!-- ★ 방 삭제 전, 해당 방의 모든 참가자를 먼저 삭제하는 쿼리 ★ -->
+<delete id="deleteAllParticipantsByRoomId" parameterType="int">
+    DELETE FROM ROOM_PARTICIPANTS WHERE ROOM_ID = #{roomId}
+</delete>
+
+</mapper>

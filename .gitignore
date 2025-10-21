@@ -1,0 +1,27 @@
+# Log files
+*.log
+LOGS/
+*.log.*
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# IDE-specific files
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+.project
+.classpath
+.factorypath
+.settings/
+
+# Maven build output
+target/
+
+# Secrets
+src/main/resources/config/api.properties
