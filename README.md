@@ -9,6 +9,12 @@
 **AI 오목 로직과 얼굴 인식 로그인 기능은 별도 저장소인 [GomokuAI](https://github.com/haejun1213/GomokuAI)에 구현되어 있습니다.**  
 해당 저장소에서는 Python 기반 강화학습(DQN) AI와 DeepFace 얼굴 인식 모듈을 포함하고 있습니다.
 
+## 📄 프로젝트 문서
+
+저희 프로젝트의 상세 기획안과 발표 자료는 아래 링크에서 확인하실 수 있습니다.
+
+-   [최종 발표 자료 (PDF)](./docs/final_presentation.pdf)
+
 ---
 
 ## 2. 주요 기능
